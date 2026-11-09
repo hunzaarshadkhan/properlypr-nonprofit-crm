@@ -6,13 +6,19 @@
     "db:generate": "drizzle-kit generate",
     "build": "node build.mjs",
     "dev": "node build.mjs && node dev/server.mjs",
-    "test": "node build.mjs && node check-workflow.mjs && node test/check-api.mjs"
+    "start": "node server/server.mjs",
+    "test:ui": "node build.mjs && node test/check-ui.mjs",
+    "test": "node build.mjs && node check-workflow.mjs && node test/check-api.mjs && node test/check-csv.mjs && node test/check-server.mjs"
   },
   "devDependencies": {
     "drizzle-kit": "0.31.10",
-    "drizzle-orm": "0.45.2"
+    "drizzle-orm": "0.45.2",
+    "playwright": "1.65.0"
   },
   "engines": {
     "node": ">=24"
+  },
+  "dependencies": {
+    "google-auth-library": "11.3.4"
   }
 }

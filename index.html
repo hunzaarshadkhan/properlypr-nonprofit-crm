@@ -401,6 +401,16 @@
         gap: 3px;
         font-size: 13px;
       }
+      .form input, .form select, .form label { min-width: 0; }
+      .form input, .form select { width: 100%; }
+      .form .full { grid-column: 1 / -1; }
+      .create-section { border: 0; padding: 0; margin: 20px 0; min-width: 0; }
+      .create-section legend { font-weight: 650; margin-bottom: 10px; }
+      #newOrg .head { position: sticky; top: 0; background: #fffefa; z-index: 2; }
+      #newOrg .actions { position: sticky; bottom: 0; margin-bottom: 0; padding: 14px 0; background: #fffefa; border-top: 1px solid var(--line); }
+      #newOrg details { margin: 20px 0; }
+      #newOrg summary { cursor: pointer; color: var(--moss); font-weight: 600; }
+      .field-help { color: var(--muted); font-size: 12px; }
       .entry {
         border-top: 1px solid var(--line);
         padding: 11px 0;
@@ -488,7 +498,7 @@
       <main class="main">
         <div class="top">
           <span>ProperlyPR &nbsp;/&nbsp; Nonprofit CRM</span
-          ><span id="date"></span>
+          ><span><span id="date"></span> <button id="signout" type="button">Sign out</button></span>
         </div>
         <div class="kicker">Sales workspace</div>
         <h1 id="title">Overview</h1>
@@ -496,24 +506,54 @@
         <div id="content">Opening workspace…</div>
       </main>
     </div>
-    <dialog id="newOrg">
-      <div class="head"><h2>Add organization</h2></div>
+    <dialog id="newOrg" aria-labelledby="createTitle">
+      <div class="head"><h2 id="createTitle">Add organization</h2></div>
       <div class="body">
         <p>
-          New records start in Available. Choose “Add to first calls” when
-          you’re ready to contact them.
+          Add the organization and its primary contact together. Only the name
+          and EIN are required; you can fill in other details later.
         </p>
         <form id="create">
-          <div class="form">
-            <label
-              >Organization name<input
-                name="name"
-                maxlength="240"
-                required /></label
-            ><label
-              >EIN<input name="id" placeholder="12-3456789" required
-            /></label>
-          </div>
+          <fieldset class="create-section">
+            <legend>Organization</legend>
+            <div class="form">
+              <label>Organization name *<input name="name" maxlength="240" autocomplete="organization" required autofocus /></label>
+              <label>EIN *<input name="id" placeholder="12-3456789" maxlength="16" pattern="[0-9]{2}-?[0-9]{7}" title="Nine digits, with an optional hyphen after the first two" required /></label>
+              <label>Website<input name="website" type="url" placeholder="https://example.org" maxlength="4500" /></label>
+              <label>Focus area<input name="focus" placeholder="Education, health, arts…" maxlength="4500" /></label>
+              <label class="full">Mailing address<textarea name="address" rows="2" maxlength="4500" autocomplete="street-address" placeholder="Street, city, state, and ZIP code"></textarea></label>
+            </div>
+          </fieldset>
+          <fieldset class="create-section">
+            <legend>Primary contact</legend>
+            <div class="form">
+              <label>Contact name<input name="contact" autocomplete="name" maxlength="4500" placeholder="Full name" /></label>
+              <label>Contact role<input name="contactRole" autocomplete="organization-title" maxlength="4500" placeholder="Executive director, development manager…" /></label>
+              <label>Email address<input name="email" type="email" autocomplete="email" maxlength="4500" placeholder="person@example.org" /></label>
+              <label>Phone number<input name="phone" type="tel" autocomplete="tel" maxlength="4500" placeholder="+1 (555) 555-0100" /></label>
+              <label>Email allowed?<select name="allowed" aria-label="Email allowed?"><option value="Unknown">Unknown / not yet recorded</option><option value="Yes">Yes</option><option value="No">No</option></select></label>
+              <label>Permission evidence<input name="permissionEvidence" maxlength="4500" placeholder="How and when permission was given" /></label>
+            </div>
+          </fieldset>
+          <fieldset class="create-section">
+            <legend>Ownership &amp; next work</legend>
+            <div class="form">
+              <label>Assigned rep<input name="owner" maxlength="4500" placeholder="Leave blank for unassigned" /></label>
+              <label>Start in<select name="startIn" aria-label="Start in"><option value="Available">Available — ready for review</option><option value="First call">First-call queue — ready to call</option></select></label>
+              <label class="full">Initial team note<textarea name="initialNote" maxlength="6000" placeholder="Context for the team, referral details, or next steps"></textarea></label>
+            </div>
+          </fieldset>
+          <details>
+            <summary>More organization details &amp; research</summary>
+            <div class="form">
+              <label class="full">Mission / programs<textarea name="mission" maxlength="4500" placeholder="What the organization does"></textarea></label>
+              <label>Reported revenue (USD)<input name="revenue" inputmode="decimal" maxlength="4500" placeholder="730009.00" /></label>
+              <label>Tax period<input name="period" placeholder="YYYY-MM" pattern="[0-9]{4}-(0[1-9]|1[0-2])" maxlength="7" title="Tax period in YYYY-MM format, for example 2025-12" /></label>
+              <label class="full">Published email candidate<input name="candidate" maxlength="4500" placeholder="Unverified address found during research" /><span class="field-help">Kept separate from the working email until reviewed.</span></label>
+              <label class="full">Research notes<textarea name="research" maxlength="4500" placeholder="Useful background and evidence"></textarea></label>
+              <label class="full">Research source URL<input name="researchSource" type="url" maxlength="4500" placeholder="https://example.org/source" /></label>
+            </div>
+          </details>
           <div id="createNotice" hidden></div>
           <div class="actions">
             <button class="primary">Add organization</button
@@ -522,12 +562,26 @@
         </form>
       </div>
     </dialog>
+    <dialog id="csvImportDialog">
+      <div class="head"><div class="row"><h2>Import organizations</h2><button type="button" id="closeImport">Close ×</button></div></div>
+      <div class="body">
+        <p>Upload a comma-separated CSV with a header row, organization name, and nine-digit EIN. Existing EINs are skipped; existing records are preserved. Keep leading zeros in EINs.</p>
+        <p>New records enter the queue you choose. Historical statuses and dates remain source evidence; no outreach is logged. Nurture imports are due for review today.</p>
+        <button type="button" id="csvTemplate">Download column template</button>
+        <p><label>CSV file (max 1.5 MB, 1,000 records)<input id="csvFile" type="file" accept=".csv,text/csv"></label></p>
+        <div id="csvMapping"></div>
+        <div id="csvNotice" role="status" hidden></div>
+        <div id="csvPreview"></div>
+        <div class="actions"><button type="button" id="previewImport" disabled>Validate &amp; preview</button><button type="button" class="primary" id="commitImport" disabled>Import new records</button></div>
+      </div>
+    </dialog>
     <dialog id="record">
       <div id="head" class="head"></div>
       <div id="recordNotice" role="status" hidden></div>
       <div id="body" class="body"></div>
     </dialog>
     <script>
+      /*CSV_MODULE*/
       const $ = (id) => document.getElementById(id),
         esc = (v) =>
           String(v ?? "").replace(
@@ -553,14 +607,20 @@
         serial = 0,
         draft = false,
         saveId = "",
-        profileEdit = false;
+        profileEdit = false,
+        createDraft = false;
       const pages = [
         ["Overview", "◩"],
         ["Organizations", "▤"],
         ["Calls due", "☎"],
+        ["First calls", "◇"],
+        ["Cold calls", "☎"],
+        ["Callbacks", "↩"],
         ["Emails due", "✉"],
         ["Meetings", "□"],
         ["Review and nurture", "◇"],
+        ["Nurture", "◇"],
+        ["Review", "◇"],
       ];
       const colors = [
         "#315e4c",
@@ -676,7 +736,7 @@
               ["Organizations", list.length],
               ["Calls due", list.filter(call).length],
               ["Emails due", list.filter(email).length],
-              ["Meetings", list.filter((r) => r.tab === "Meetings").length],
+              ["Meetings", list.filter((r) => r.tab === "Meetings" && !["Won", "Lost"].includes(r.status)).length],
             ]
               .map(
                 ([n, v]) =>
@@ -731,11 +791,11 @@
               )
               .join("") +
             "</section></div><h2>Next calls</h2>" +
-            table(list.filter(call).slice(0, 8));
+            table(list.filter(call).sort((a,b) => a.due.localeCompare(b.due) || a.name.localeCompare(b.name)).slice(0, 8));
           return;
         }
         $("content").innerHTML =
-          '<div class="filter"><input id="search" aria-label="Search organizations" placeholder="Search name, domain, or EIN" value="' +
+          '<div class="filter"><input id="search" aria-label="Search organizations" placeholder="Search organization, person, email, or EIN" value="' +
           esc(search) +
           '"><select aria-label="Work tab" id="stage"><option value="">All work tabs</option>' +
           tabs
@@ -753,23 +813,28 @@
             ? '<button data-page="Organizations">' + esc(issue) + " ×</button>"
             : "") +
           (page === "Organizations"
-            ? '<button id="addOrg" class="primary">Add organization</button>' +
+            ? '<button id="addOrg" class="primary">Add organization</button><button id="openImport">Upload CSV</button>' +
               (stage === "Available"
                 ? '<button id="batchBtn">Queue selected</button>'
                 : "")
             : "") +
-          '</div><div id="matches"></div>';
+          '<button id="exportCsv">Download CSV</button></div><div id="matches"></div>';
         rows();
       }
-      function rows() {
+      function visibleRecords() {
         const q = search.toLowerCase();
-        const records = list.filter(
+        return list.filter(
           (r) =>
             (!stage || r.tab === stage) &&
             (!issue || issues[issue](r)) &&
             (!q ||
-              [r.name, r.domain, r.id].join(" ").toLowerCase().includes(q)) &&
-            (page === "Calls due"
+              [r.name, r.domain, r.id, r.contact, r.email, r.phone, r.owner].join(" ").toLowerCase().includes(q)) &&
+            (page === "First calls" ? r.tab === "First call"
+              : page === "Cold calls" ? r.tab === "Cold Call Sequence"
+              : page === "Callbacks" ? r.tab === "Callbacks"
+              : page === "Nurture" ? ["Nurture", "Nurture follow-up"].includes(r.status)
+              : page === "Review" ? ["Review", "Contact review"].includes(r.status)
+              : page === "Calls due"
               ? call(r)
               : page === "Emails due"
                 ? email(r)
@@ -779,15 +844,25 @@
                     ? r.tab === "Review and Nurture"
                     : true),
         );
+      }
+      function rows() {
+        const records = visibleRecords();
         $("matches").innerHTML =
           '<p class="count">' +
           records.length +
           " organizations</p>" +
           table(records);
       }
+      function emailLink(value) {
+        return value ? '<a href="mailto:' + esc(encodeURIComponent(value)) + '">' + esc(value) + '</a>' : '<span class="field-help">Not added</span>';
+      }
+      function phoneLink(value) {
+        const number = String(value || "").replace(/[^+0-9]/g, "");
+        return number ? '<a href="tel:' + esc(number) + '">' + esc(value) + '</a>' : '—';
+      }
       function table(recs) {
         return (
-          '<div class="tablewrap"><table><thead><tr><th>Organization</th><th>Work tab</th><th>Next step</th><th>Due date</th></tr></thead><tbody>' +
+          '<div class="tablewrap"><table><thead><tr><th>Organization</th><th>Person / phone</th><th>Email</th><th>Assigned rep</th><th>Status</th><th>Next step</th><th>Due date</th><th>Action</th></tr></thead><tbody>' +
           recs
             .map(
               (r) =>
@@ -807,15 +882,15 @@
                 esc(nice(r.name)) +
                 "</button><br><small>" +
                 esc(r.domain || r.id) +
-                '</small></td><td><span class="chip">' +
-                esc(r.tab) +
+                '</small></td><td>' + esc(r.contact || '—') + (r.contactRole ? '<br><small>' + esc(r.contactRole) + '</small>' : '') + '<br><small>' + phoneLink(r.phone) + '</small></td><td>' + emailLink(r.email) + '</td><td>' + esc(r.owner || 'Unassigned') + '</td><td><span class="chip">' +
+                esc(r.status) +
                 "</span></td><td>" +
                 esc(r.step) +
                 '</td><td class="' +
                 (r.due && r.due < today ? "warn" : "") +
                 '">' +
                 fmt(r.due) +
-                "</td></tr>",
+                '</td><td><button data-update-outcome="' + esc(r.id) + '">Update status</button></td></tr>',
             )
             .join("") +
           "</tbody></table>" +
@@ -863,15 +938,21 @@
       }
       const editable = {
         owner: "Assigned rep",
-        contact: "Contact",
+        contact: "Contact name",
+        contactRole: "Contact role",
         phone: "Phone",
-        email: "CRM email",
+        email: "Email address",
+        candidate: "Published email candidate",
         website: "Website",
         address: "Mailing address",
         focus: "Focus area",
+        revenue: "Reported revenue (USD)",
+        period: "Tax period",
         mission: "Mission / programs",
         research: "Research notes",
         researchSource: "Research source URL",
+        allowed: "Email allowed?",
+        permissionEvidence: "Permission evidence",
       };
       function draw() {
         const o = sel;
@@ -908,9 +989,11 @@
                 ([k, v]) =>
                   "<label>" +
                   v +
-                  (k === "mission" || k === "research"
+                  (k === "allowed"
+                    ? '<select name="allowed" aria-label="Email allowed?">' + ["", "Unknown", "Yes", "No"].map(v => '<option value="' + v + '" ' + (o.allowed === v ? 'selected' : '') + '>' + (v || 'Not recorded') + '</option>').join('') + '</select>'
+                    : k === "mission" || k === "research"
                     ? '<textarea name="' + k + '">' + esc(o[k]) + "</textarea>"
-                    : '<input name="' + k + '" value="' + esc(o[k]) + '">') +
+                    : '<input name="' + k + '" type="' + (k === 'email' ? 'email' : ['website', 'researchSource'].includes(k) ? 'url' : k === 'phone' ? 'tel' : 'text') + '" maxlength="4500" value="' + esc(o[k]) + '">') +
                   "</label>",
               )
               .join("") +
@@ -928,7 +1011,7 @@
               ["Mission / programs", esc(o.mission)],
               [
                 "Reported revenue",
-                o.revenue
+                o.revenue !== "" && o.revenue != null
                   ? "$" +
                     esc(Number(o.revenue).toLocaleString()) +
                     " · " +
@@ -949,9 +1032,12 @@
             "<h3>Contact</h3>" +
             pairs([
               ["Contact", esc(o.contact)],
-              ["Phone", esc(o.phone)],
-              ["CRM email", esc(o.email)],
+              ["Contact role", esc(o.contactRole)],
+              ["Phone", phoneLink(o.phone)],
+              ["Email address", emailLink(o.email)],
               ["Published candidate", esc(o.candidate)],
+              ["Email allowed?", esc(o.allowed)],
+              ["Permission evidence", esc(o.permissionEvidence)],
               ["Filing officer", esc(o.officer)],
               ["Agreed time (ET)", esc(fmt(o.agreed))],
               ["Research notes", esc(o.research)],
@@ -998,6 +1084,7 @@
         } else if (pane === "Activity") {
           body =
             "<h3>Activity history</h3>" +
+            (o.importSource ? '<p>Imported from ' + esc(o.importSource.filename) + ' · CSV row ' + esc(o.importSource.row) + '. Import time is separate from outreach time.</p>' : '') +
             [...o.history]
               .reverse()
               .map(
@@ -1034,6 +1121,21 @@
       document.onclick = async (e) => {
         const b = e.target.closest("button");
         if (!b || busy) return;
+        if (b.id === "exportCsv") {
+          b.disabled = true;
+          try {
+            const response = await fetch("/api/csv/export", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ids:visibleRecords().map(r => r.id)})});
+            if (!response.ok) throw Error((await response.json()).error || "Export failed.");
+            downloadCSV(await response.text(), "properlypr-" + page.toLowerCase().replace(/[^a-z]+/g, "-") + "-" + today + ".csv");
+          } catch(err) { msg(err.message, true); }
+          finally { b.disabled = false; }
+          return;
+        }
+        if (b.id === "signout") {
+          await fetch("/logout", {method:"POST"});
+          location.href = "/login";
+          return;
+        }
         if (b.id === "batchBtn") {
           if (!batchIds.size) {
             msg("Select an available organization first.");
@@ -1058,13 +1160,21 @@
           return;
         } else if (b.id === "addOrg") {
           $("create").reset();
+          $("create").querySelectorAll("details[open]").forEach(d => d.open = false);
+          createDraft = false;
           saveId = "";
           msg("", false, "createNotice");
           $("newOrg").showModal();
-        } else if (b.id === "dismissCreate") $("newOrg").close();
+        } else if (b.id === "dismissCreate") {
+          if (!createDraft || window.confirm("Discard this unsaved organization?")) { $("newOrg").close(); createDraft = false; }
+        }
         else if (b.dataset.page) go(b.dataset.page);
         else if (b.dataset.stage) go("Organizations", b.dataset.stage);
         else if (b.dataset.issue) go("Organizations", "", b.dataset.issue);
+        else if (b.dataset.updateOutcome) {
+          await openOrg(b.dataset.updateOutcome);
+          if (sel && sel.id === b.dataset.updateOutcome) { pane = "Log outcome"; draw(); }
+        }
         else if (b.dataset.org) await openOrg(b.dataset.org);
         else if (b.id === "close") {
           if (ok()) $("record").close();
@@ -1085,10 +1195,17 @@
       $("record").addEventListener("cancel", (e) => {
         if (!ok()) e.preventDefault();
       });
+      $("newOrg").addEventListener("cancel", e => {
+        if (busy || (createDraft && !window.confirm("Discard this unsaved organization?"))) e.preventDefault();
+        else createDraft = false;
+      });
       document.oninput = (e) => {
         if (e.target.id === "search") {
           search = e.target.value;
           rows();
+        } else if (e.target.closest("#create")) {
+          createDraft = true;
+          saveId = "";
         } else if (e.target.closest("form")) {
           draft = true;
           saveId = "";
@@ -1122,28 +1239,29 @@
         e.preventDefault();
         if (busy) return;
         const f = e.target,
-          v = Object.fromEntries(new FormData(f)),
-          button = f.querySelector("button");
+          formId = f.getAttribute("id"),
+          v = Object.fromEntries(new FormData(f));
         busy = true;
-        button.disabled = true;
+        const controls = [...f.querySelectorAll("input,select,textarea,button")].map(element => [element, element.disabled]);
+        controls.forEach(([element]) => element.disabled = true);
         saveId = saveId || crypto.randomUUID();
         try {
-          if (f.id === "create") {
+          if (formId === "create") {
             const item = await api("/api/org", { ...v, requestId: saveId });
             saveId = "";
-            draft = false;
+            draft = createDraft = false;
             $("newOrg").close();
             await refresh();
             await openOrg(item.id);
             return;
           }
-          const action = f.id === "note" ? "note" : "update";
+          const action = formId === "note" ? "note" : "update";
           let payload =
-            f.id === "note"
+            formId === "note"
               ? { body: v.body }
-              : f.id === "profile"
+              : formId === "profile"
                 ? { type: "profile", rev: sel.rev, fields: v }
-                : f.id === "person"
+                : formId === "person"
                   ? { type: "person", rev: sel.rev, ...v }
                   : { type: "outcome", rev: sel.rev, ...v };
           const data = await api("/api/org/" + sel.id + "/" + action, {
@@ -1153,10 +1271,10 @@
           sel = data;
           draft = profileEdit = false;
           saveId = "";
-          if (f.id === "outcome") pane = "Activity";
+          if (formId === "outcome") pane = "Activity";
           draw();
           msg(
-            f.id === "note" ? "Team note saved." : "Changes saved.",
+            formId === "note" ? "Team note saved." : "Changes saved.",
             false,
             "recordNotice",
           );
@@ -1165,17 +1283,66 @@
           msg(
             err.message,
             true,
-            f.id === "create" ? "createNotice" : "recordNotice",
+            formId === "create" ? "createNotice" : "recordNotice",
           );
         } finally {
           busy = false;
-          button.disabled = false;
+          controls.forEach(([element, disabled]) => element.disabled = disabled);
         }
       };
+      function downloadCSV(text, filename) {
+        const url = URL.createObjectURL(new Blob([text], {type:"text/csv;charset=utf-8"}));
+        const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+      let importText = "", importFilename = "", importValidated = false, importRequestId = "";
+      function importPayload() {
+        return {text:importText, filename:importFilename, mapping:Object.fromEntries([...document.querySelectorAll("[data-map]")].map(e => [e.dataset.map, e.value])), destination:$("importDestination").value, requestId:importRequestId};
+      }
+      function invalidateImport() { importValidated = false; $("commitImport").disabled = true; $("csvPreview").innerHTML = ""; }
+      $("csvFile").addEventListener("change", async e => {
+        invalidateImport(); $("previewImport").disabled = true; $("csvMapping").innerHTML = "";
+        const file = e.target.files[0]; if (!file) return;
+        try {
+          if (file.size > 1500000) throw Error("Choose a CSV smaller than 1.5 MB.");
+          importText = await file.text(); importFilename = file.name; importRequestId = crypto.randomUUID();
+          const {headers, rows} = parseCSV(importText), mapping = autoMap(headers);
+          $("csvMapping").innerHTML = '<h3>Match columns</h3><p>' + rows.length + ' data rows. Check the automatic matches before importing.</p><div class="form">' + Object.entries(csvFields).map(([key, labels]) => '<label>' + esc(labels[0]) + (["name", "id"].includes(key) ? ' (required)' : '') + '<select data-map="' + key + '"><option value="">Skip column</option>' + headers.map((h,i) => '<option value="' + i + '" ' + (mapping[key] === String(i) ? 'selected' : '') + '>' + esc(h) + '</option>').join('') + '</select></label>').join('') + '<label>Destination queue<select id="importDestination">' + csvDestinations.map(d => '<option>' + esc(d) + '</option>').join('') + '</select></label></div>';
+          $("previewImport").disabled = false; msg("Columns matched. Validate the preview to continue.", false, "csvNotice");
+        } catch(err) { msg(err.message, true, "csvNotice"); }
+      });
+      $("csvMapping").addEventListener("change", invalidateImport);
+      document.addEventListener("click", async e => {
+        const b = e.target.closest("button"); if (!b) return;
+        if (b.id === "openImport") {
+          $("csvImportDialog").showModal(); return;
+        }
+        if (b.id === "closeImport") { if (!busy) $("csvImportDialog").close(); return; }
+        if (b.id === "csvTemplate") { downloadCSV(csvDocument([Object.values(csvFields).map(v => v[0])]), "properlypr-import-template.csv"); return; }
+        if (!["previewImport", "commitImport"].includes(b.id) || busy) return;
+        const commit = b.id === "commitImport";
+        if (commit && !importValidated) return;
+        busy = true; b.disabled = true;
+        const controls = [...$("csvMapping").querySelectorAll("select"), $("csvFile")]; controls.forEach(c => c.disabled = true);
+        try {
+          const result = await api(commit ? "/api/csv/import" : "/api/csv/preview", importPayload());
+          if (commit) {
+            importValidated = false; $("commitImport").disabled = true;
+            $("csvImportDialog").close(); $("csvFile").value = ""; $("csvMapping").innerHTML = ""; $("csvPreview").innerHTML = ""; $("previewImport").disabled = true;
+            await refresh(); msg(result.added + " organizations imported; " + result.skipped + " duplicate EINs skipped.");
+          } else {
+            importValidated = !result.errors.length && result.ready > 0; $("commitImport").disabled = !importValidated;
+            msg(result.ready + " ready · " + result.skipped + " duplicates skipped · " + result.errors.length + " invalid rows. Existing records will be preserved.", !!result.errors.length, "csvNotice");
+            $("csvPreview").innerHTML = '<h3>Preview (first 8 records)</h3><div class="tablewrap"><table><tr><th>CSV row</th><th>Organization</th><th>EIN</th><th>Person</th><th>Result</th></tr>' + result.preview.map(r => '<tr><td>' + r.row + '</td><td>' + esc(r.name) + '</td><td>' + esc(r.id) + '</td><td>' + esc(r.contact) + '</td><td>' + esc(r.result) + '</td></tr>').join('') + '</table></div>' + (result.errors.length ? '<h3>Corrections needed (first 50)</h3>' + result.errors.slice(0,50).map(r => '<p>Row ' + r.row + ': ' + esc(r.message) + '</p>').join('') : '');
+          }
+        } catch(err) { invalidateImport(); msg(err.message, true, "csvNotice"); }
+        finally { controls.forEach(c => c.disabled = false); busy = false; b.disabled = commit ? !importValidated : !$("csvMapping").children.length; }
+      });
+      $("csvImportDialog").addEventListener("cancel", e => { if (busy) e.preventDefault(); });
       refresh().catch((e) => {
         msg(e.message, true);
         $("content").innerHTML =
-          '<a href="/signin-with-chatgpt?return_to=/" target="_top">Sign in to ProperlyPR CRM</a>';
+          '<a href="/login" target="_top">Sign in to ProperlyPR CRM</a>';
       });
     </script>
   </body>

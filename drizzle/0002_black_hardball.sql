@@ -1,0 +1,1 @@
+ALTER TABLE `crm_users` ADD `hosted_domain` text DEFAULT '' NOT NULL;

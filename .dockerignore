@@ -1,0 +1,10 @@
+.git
+.local
+.env*
+node_modules
+dist
+assets
+test
+*.xlsx
+*.csv
+*.sqlite*

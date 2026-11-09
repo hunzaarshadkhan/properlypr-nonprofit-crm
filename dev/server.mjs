@@ -25,7 +25,7 @@ const server = http.createServer(async (incoming, outgoing) => {
     let length = 0;
     for await (const chunk of incoming) {
       length += chunk.length;
-      if (length > 1024 * 1024) {
+      if (length > 2 * 1024 * 1024) {
         outgoing.writeHead(413).end();
         return;
       }

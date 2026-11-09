@@ -34,6 +34,7 @@ export function actions(o) {
     "Callback requested",
     "Not interested",
     "Wrong number",
+    "Dial failed",
     "Do not contact",
   ];
   if (["Rebooking", "Nurture follow-up"].includes(o.status))
@@ -87,7 +88,7 @@ export function actions(o) {
     o.tab === "Cold Call Sequence" ||
     o.tab === "First call"
   )
-    return ["No answer", "Voicemail", "Busy", ...shared];
+    return ["No answer", "Not connected", "Voicemail", "Busy", ...shared];
   return ["Return to first calls", "Archive", "Do not contact"];
 }
 export function transition(org, action, day, at) {
@@ -206,7 +207,7 @@ export function transition(org, action, day, at) {
     o.callbackAttempts = 0;
     o.callbackStart = "";
     place("Callbacks", "Callback", "Callback 1", at.slice(0, 10));
-  } else if (["No answer", "Voicemail", "Busy"].includes(action)) {
+  } else if (["No answer", "Not connected", "Voicemail", "Busy"].includes(action)) {
     if (o.tab !== "First call" && o.due && day < o.due)
       throw Error("This call is due on " + o.due + ".");
     if (o.tab === "Callbacks") {
@@ -254,7 +255,7 @@ export function transition(org, action, day, at) {
         );
     }
   } else if (action === "Not interested") nurture();
-  else if (action === "Wrong number")
+  else if (action === "Wrong number" || action === "Dial failed")
     place(
       "Review and Nurture",
       "Contact review",

@@ -8,6 +8,20 @@
       "when": 1794201020531,
       "tag": "0000_special_vin_gonzales",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1794254924297,
+      "tag": "0001_reflective_hardball",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1794255645353,
+      "tag": "0002_black_hardball",
+      "breakpoints": true
     }
   ]
 }

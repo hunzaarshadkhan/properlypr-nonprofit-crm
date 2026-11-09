@@ -1,4 +1,5 @@
 import { actions, todayET, transition } from "./workflow.js";
+import { csvImport, csvExport } from "./csv-api.js";
 const html = /*APP_HTML*/ null;
 const fields = [
   "contact",
@@ -11,6 +12,12 @@ const fields = [
   "research",
   "researchSource",
   "owner",
+  "allowed",
+  "permissionEvidence",
+  "contactRole",
+  "candidate",
+  "revenue",
+  "period",
 ];
 const bad = (message, status = 400) => {
   throw Object.assign(Error(message), { status });
@@ -30,6 +37,31 @@ function clean(value, limit) {
 }
 function validId(id) {
   return typeof id === "string" && /^[\da-f-]{36}$/i.test(id);
+}
+function profileValues(input, original = {}) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) bad("Invalid profile fields.");
+  const values = {};
+  for (const [key, raw] of Object.entries(input)) {
+    if (!fields.includes(key)) bad("Unknown profile field.");
+    let value = clean(raw, 4500);
+    if (key === "allowed" && !["", "Yes", "No", "Unknown"].includes(value)) bad("Choose Yes, No, or Unknown for email permission.");
+    if (value && key === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) bad("Enter a valid email address.");
+    if (["website", "researchSource"].includes(key)) {
+      if (value) {
+        let url;
+        try { url = new URL(value); } catch { bad("Enter a full web address, including https://."); }
+        if (!["https:", "http:"].includes(url.protocol)) bad("Use an http or https address.");
+        if (key === "website") values.domain = url.hostname.replace(/^www\./, "");
+      } else if (key === "website") values.domain = "";
+    }
+    if (value && key === "revenue" && value !== String(original.revenue ?? "")) {
+      value = value.replace(/[$,]/g, "");
+      if (!/^\d+(\.\d{1,2})?$/.test(value) || !Number.isFinite(Number(value))) bad("Enter a nonnegative reported revenue amount.");
+    }
+    if (value && key === "period" && value !== String(original.period ?? "") && !/^\d{4}-(0[1-9]|1[0-2])$/.test(value)) bad("Enter the tax period as YYYY-MM.");
+    values[key] = value;
+  }
+  return values;
 }
 async function detail(db, id) {
   const row = await db
@@ -59,31 +91,10 @@ async function update(db, id, payload, author) {
     title,
     notes = "";
   if (payload.type === "profile") {
-    const changes = [];
-    for (const [key, raw] of Object.entries(payload.fields || {})) {
-      if (!fields.includes(key)) bad("Unknown profile field.");
-      const value = clean(raw, 4500);
-      if (value && key === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))
-        bad("Enter a valid email address.");
-      if (value && ["website", "researchSource"].includes(key)) {
-        let u;
-        try {
-          u = new URL(value);
-        } catch {
-          bad("Enter a full web address.");
-        }
-        if (!["https:", "http:"].includes(u.protocol))
-          bad("Use an http or https address.");
-        if (key === "website")
-          updated.domain = u.hostname.replace(/^www\./, "");
-      }
-      if (key === "website" && !value) updated.domain = "";
-      if (updated[key] !== value) {
-        changes.push(key);
-        updated[key] = value;
-      }
-    }
+    const values = profileValues(payload.fields || {}, org);
+    const changes = Object.keys(values).filter(key => (org[key] ?? "") !== values[key]);
     if (!changes.length) return data;
+    Object.assign(updated, values);
     title = "Profile updated";
     notes = changes.join(", ");
   } else if (payload.type === "person") {
@@ -188,6 +199,18 @@ export default {
       )
         return json({ error: "Invalid write request." }, 403);
       const db = env.DB;
+      if (pathname === "/api/csv/export" && request.method === "POST") {
+        const { ids } = await request.json();
+        return new Response(await csvExport(db, ids), { headers: {
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": 'attachment; filename="properlypr-export.csv"',
+          "Cache-Control": "private, no-store",
+          "X-Content-Type-Options": "nosniff",
+        }});
+      }
+      if (["/api/csv/preview", "/api/csv/import"].includes(pathname) && request.method === "POST") {
+        return json(await csvImport(db, await request.json(), author, todayET(), pathname.endsWith("/import")));
+      }
       if (pathname === "/api/import" && request.method === "POST") {
         if (!importAccess) bad("Import is restricted.", 403);
         const rows = await request.json();
@@ -221,6 +244,8 @@ export default {
           "phone",
           "agreed",
           "owner",
+          "contact",
+          "contactRole",
         ];
         const projections = keys
           .map((k) => "json_extract(profile,'$." + k + "') AS " + k)
@@ -294,9 +319,21 @@ export default {
           id = clean(p.id, 16).replace(/[- ]/g, "");
         if (!name || !/^\d{9}$/.test(id) || !validId(p.requestId))
           bad("Enter an organization name and a nine-digit EIN.");
-        const initial = {
+        const existing = await db.prepare("SELECT profile FROM organizations WHERE id=?").bind(id).first();
+        if (existing) {
+          if (JSON.parse(existing.profile).history.some(h => h.requestId === p.requestId)) return json(await detail(db, id));
+          bad("There is already an organization with this EIN.", 409);
+        }
+        const extras = Object.fromEntries(Object.entries(p).filter(([key]) => !["id", "name", "requestId", "initialNote", "startIn"].includes(key)));
+        const profile = profileValues(extras);
+        const initialNote = clean(p.initialNote ?? "", 6000);
+        const startIn = p.startIn ?? "Available";
+        if (!["Available", "First call"].includes(startIn)) bad("Start in Available or the first-call queue.");
+        const stamp = new Date().toISOString();
+        let initial = {
           id,
           name,
+          ...profile,
           tab: "Available",
           status: "Available",
           step: "Select for first call",
@@ -305,26 +342,25 @@ export default {
           notes: [],
           history: [
             {
-              date: new Date().toISOString(),
+              date: stamp,
               text: "Organization added",
               by: author,
               requestId: p.requestId,
+              notes: startIn === "First call" ? "Started in the first-call queue. No outreach recorded." : "",
             },
           ],
         };
-        const r = await db
-          .prepare(
-            "INSERT OR IGNORE INTO organizations(id,name,profile) VALUES(?,?,?)",
-          )
-          .bind(id, name, JSON.stringify(initial))
-          .run();
-        const o = await detail(db, id);
-        if (
-          !r.meta.changes &&
-          !o.history.some((h) => h.requestId === p.requestId)
-        )
-          bad("There is already an organization with this EIN.", 409);
-        return json(o);
+        if (startIn === "First call") initial = transition(initial, "Add to first calls", todayET(), "");
+        const writes = [db.prepare("INSERT INTO organizations(id,name,profile) VALUES(?,?,?)").bind(id, name, JSON.stringify(initial))];
+        if (initialNote) writes.push(db.prepare("INSERT INTO entries(id,organization,kind,stamp,author,body) VALUES(?,?,'note',?,?,?)").bind(p.requestId, id, stamp, author, initialNote));
+        try {
+          await db.batch(writes);
+        } catch {
+          const row = await db.prepare("SELECT profile FROM organizations WHERE id=?").bind(id).first();
+          if (row && JSON.parse(row.profile).history.some(h => h.requestId === p.requestId)) return json(await detail(db, id));
+          bad(row ? "There is already an organization with this EIN." : "Unable to save the organization and note. Please try again.", row ? 409 : 500);
+        }
+        return json(await detail(db, id));
       }
       const match = pathname.match(/^\/api\/org\/(\d{9})(?:\/(note|update))?$/);
       if (!match) bad("Page not found.", 404);
